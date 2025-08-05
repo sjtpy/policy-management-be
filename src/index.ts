@@ -1,7 +1,10 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { testConnection } from './config/database';
+import { testConnection, syncDatabase } from './config/database';
+import './models';
+import policyTemplateRoutes from './routes/policyTemplates';
+import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -20,10 +23,15 @@ app.get('/ping', (req: Request, res: Response) => {
     res.json({ message: 'pong' });
 });
 
+app.use('/api/policy-templates', policyTemplateRoutes);
+
+
+app.use(errorHandler);
 
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     await testConnection();
+    await syncDatabase();
 });
 
 export { app }; 

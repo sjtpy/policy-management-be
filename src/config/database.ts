@@ -2,7 +2,7 @@ import { Sequelize } from 'sequelize';
 
 const sequelize = new Sequelize(process.env.DATABASE_URL || 'postgresql://postgres:password@postgres:5432/policy_management_db', {
     dialect: 'postgres',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false
+    logging: false
 });
 
 const testConnection = async () => {
@@ -14,4 +14,13 @@ const testConnection = async () => {
     }
 };
 
-export { sequelize, testConnection }; 
+const syncDatabase = async () => {
+    try {
+        await sequelize.sync({ alter: true });
+        console.log('Database synced');
+    } catch (error) {
+        console.error('Database sync failed:', error);
+    }
+};
+
+export { sequelize, testConnection, syncDatabase }; 
