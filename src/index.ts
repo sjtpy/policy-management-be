@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3001;
 
 // CORS middleware
 app.use(cors({
-    origin: 'http://localhost:3001',
+    origin: ['http://localhost:3000'],
     credentials: true
 }));
 
