@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { testConnection, syncDatabase } from './config/database';
 import './models';
 import policyTemplateRoutes from './routes/policyTemplates';
+import companyRoutes from './routes/companies';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.get('/ping', (req: Request, res: Response) => {
 });
 
 app.use('/api/policy-templates', policyTemplateRoutes);
+app.use('/api/companies', companyRoutes);
 
 
 app.use(errorHandler);

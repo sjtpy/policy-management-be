@@ -1,1 +1,2 @@
-import './PolicyTemplate'; 
+import './PolicyTemplate';
+import './Company'; 

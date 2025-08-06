@@ -83,4 +83,53 @@ export const validateId = (id: any): string => {
         throw new ValidationError('id must be a valid UUID');
     }
     return id;
+};
+
+// Company validation interfaces
+export interface ValidatedCompanyCreateRequest {
+    name: string;
+    isActive?: boolean;
+}
+
+export interface ValidatedCompanyUpdateRequest {
+    name?: string;
+    isActive?: boolean;
+}
+
+export const validateCompanyCreateRequest = (data: any): ValidatedCompanyCreateRequest => {
+    const { name, isActive } = data;
+
+    if (!name || typeof name !== 'string') {
+        throw new ValidationError('Name is required and must be a string');
+    }
+
+    if (isActive !== undefined && typeof isActive !== 'boolean') {
+        throw new ValidationError('isActive must be a boolean');
+    }
+
+    return {
+        name,
+        isActive: isActive ?? true
+    };
+};
+
+export const validateCompanyUpdateRequest = (data: any): ValidatedCompanyUpdateRequest => {
+    const { name, isActive } = data;
+    const updateData: ValidatedCompanyUpdateRequest = {};
+
+    if (name !== undefined) {
+        if (typeof name !== 'string') {
+            throw new ValidationError('Name must be a string');
+        }
+        updateData.name = name;
+    }
+
+    if (isActive !== undefined) {
+        if (typeof isActive !== 'boolean') {
+            throw new ValidationError('isActive must be a boolean');
+        }
+        updateData.isActive = isActive;
+    }
+
+    return updateData;
 }; 
