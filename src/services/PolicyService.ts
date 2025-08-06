@@ -23,6 +23,20 @@ class PolicyService {
         return await this.repository.findByCompanyId(companyId, filters);
     }
 
+    async getPoliciesByIds(policyIds: string[], companyId: string) {
+        const policies = [];
+        for (const policyId of policyIds) {
+            try {
+                const policy = await this.getPolicyById(policyId, companyId);
+                policies.push(policy);
+            } catch (error) {
+                // Skip policies that don't exist or don't belong to the company
+                continue;
+            }
+        }
+        return policies;
+    }
+
 
     async createPolicy(data: CreatePolicyData, companyId: string) {
         // Check if policy with same name and type already exists for this company

@@ -4,6 +4,8 @@ import { NotFoundError, ConflictError } from '../utils/errors';
 import PolicyService from './PolicyService';
 import EmployeeService from './EmployeeService';
 import { PolicyStatus } from '../types/policy';
+import { ROLE_POLICY_MAPPING } from '../config/rolePolicyMapping';
+import { EmployeeRole } from '../types/employee';
 
 class AcknowledgmentService {
     private repository: AcknowledgmentRepository;
@@ -22,7 +24,7 @@ class AcknowledgmentService {
         status?: AcknowledgmentStatus;
         overdue?: boolean;
     }, companyId: string) {
-        // If employeeId is provided, validate that employee belongs to the company
+
         if (filters.employeeId) {
             await this.employeeService.getEmployeeById(filters.employeeId, companyId);
         }
@@ -36,7 +38,6 @@ class AcknowledgmentService {
                 return [];
             }
 
-            // Add employee filter to ensure company-scoping
             filters.employeeId = filters.employeeId || employeeIds.join(',');
         }
 
@@ -53,11 +54,29 @@ class AcknowledgmentService {
     }
 
     async createNewHireAcknowledgments(employeeId: string, companyId: string) {
-        // Get all active policies for the company
-        const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, { status: PolicyStatus.APPROVED });
+        // Get employee to determine role
+        const employee = await this.employeeService.getEmployeeById(employeeId, companyId);
+        if (!employee) {
+            throw new NotFoundError('Employee not found');
+        }
 
-        // Create acknowledgment requests for each policy
-        const acknowledgmentData: CreateAcknowledgmentData[] = activePolicies.map(policy => ({
+        const employeeRole = (employee as any).role as EmployeeRole;
+
+        // Get required policy types for this role
+        const requiredPolicyTypes = ROLE_POLICY_MAPPING[employeeRole] || [];
+
+        // Get approved required types for the company
+        const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, {
+            status: PolicyStatus.APPROVED
+        });
+
+        // filter policies based on employee's role
+        const roleSpecificPolicies = activePolicies.filter(policy =>
+            requiredPolicyTypes.includes((policy as any).type)
+        );
+
+        // Create acknowledgment requests for role-specific policies
+        const acknowledgmentData: CreateAcknowledgmentData[] = roleSpecificPolicies.map(policy => ({
             employeeId,
             policyId: (policy as any).id,
             type: AcknowledgmentType.NEW_HIRE,
@@ -68,30 +87,33 @@ class AcknowledgmentService {
         return await this.repository.bulkCreate(acknowledgmentData);
     }
 
-    async createPeriodicAcknowledgments(employeeId: string, companyId: string) {
-        // Get all active policies for the company
-        const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, { status: PolicyStatus.APPROVED });
 
-        // Create acknowledgment requests for each policy
-        const acknowledgmentData: CreateAcknowledgmentData[] = activePolicies.map(policy => ({
-            employeeId,
-            policyId: (policy as any).id,
-            type: AcknowledgmentType.PERIODIC,
-            dueDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-            status: AcknowledgmentStatus.PENDING
-        }));
-
-        return await this.repository.bulkCreate(acknowledgmentData);
-    }
-
-    async createManualAcknowledgments(employeeIds: string[], policyIds: string[], dueDate: Date) {
+    async createManualAcknowledgments(employeeIds: string[], dueDate: Date, companyId: string) {
         const acknowledgmentData: CreateAcknowledgmentData[] = [];
 
         for (const employeeId of employeeIds) {
-            for (const policyId of policyIds) {
+            // Get employee to determine their role
+            const employee = await this.employeeService.getEmployeeById(employeeId, companyId);
+            if (!employee) {
+                continue;
+            }
+
+            const employeeRole = (employee as any).role as EmployeeRole;
+            const requiredPolicyTypes = ROLE_POLICY_MAPPING[employeeRole] || [];
+
+            // Get active policies of required types for the company
+            const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, {
+                status: PolicyStatus.APPROVED
+            });
+
+            const roleSpecificPolicies = activePolicies.filter(policy =>
+                requiredPolicyTypes.includes((policy as any).type)
+            );
+
+            for (const policy of roleSpecificPolicies) {
                 acknowledgmentData.push({
                     employeeId,
-                    policyId,
+                    policyId: (policy as any).id,
                     type: AcknowledgmentType.MANUAL,
                     dueDate,
                     status: AcknowledgmentStatus.PENDING
@@ -128,6 +150,7 @@ class AcknowledgmentService {
 
         return overdueAcknowledgments.length;
     }
+
 }
 
 export default AcknowledgmentService; 

@@ -34,32 +34,25 @@ router.patch('/:id/complete', async (req, res, next) => {
 router.post('/manual', async (req, res, next) => {
     try {
         const companyId = validateCompanyHeader(req);
-        const { employeeIds, policyIds, dueDate } = req.body;
+        const { employeeIds, dueDate } = req.body;
 
         if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
             return res.status(400).json({ error: 'Employee IDs array is required' });
-        }
-
-        if (!policyIds || !Array.isArray(policyIds) || policyIds.length === 0) {
-            return res.status(400).json({ error: 'Policy IDs array is required' });
         }
 
         if (!dueDate) {
             return res.status(400).json({ error: 'Due date is required' });
         }
 
-        // Validate all IDs
+        // Validate all employee IDs
         for (const employeeId of employeeIds) {
             validateId(employeeId);
-        }
-        for (const policyId of policyIds) {
-            validateId(policyId);
         }
 
         const acknowledgments = await acknowledgmentService.createManualAcknowledgments(
             employeeIds,
-            policyIds,
-            new Date(dueDate)
+            new Date(dueDate),
+            companyId
         );
 
         return res.status(201).json(acknowledgments);
