@@ -3,4 +3,9 @@ export enum PolicyType {
     ACCEPTABLE_USE = 'ACCEPTABLE_USE',
     CRYPTOGRAPHIC = 'CRYPTOGRAPHIC',
     DATA_PRIVACY = 'DATA_PRIVACY',
+}
+
+export enum PolicyStatus {
+    PENDING_APPROVAL = 'PENDING_APPROVAL',
+    APPROVED = 'APPROVED'
 } 
