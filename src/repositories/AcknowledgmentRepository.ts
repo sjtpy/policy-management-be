@@ -66,6 +66,15 @@ class AcknowledgmentRepository {
         });
     }
 
+    async findOverdueAcknowledgments(): Promise<Acknowledgment[]> {
+        return await Acknowledgment.findAll({
+            where: {
+                status: AcknowledgmentStatus.OVERDUE
+            },
+            order: [['dueDate', 'ASC']]
+        });
+    }
+
     async create(data: CreateAcknowledgmentData): Promise<Acknowledgment> {
         return await Acknowledgment.create(data as any);
     }

@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import AcknowledgmentService from '../services/AcknowledgmentService';
+import EmployeeService from '../services/EmployeeService';
+import PolicyService from '../services/PolicyService';
+import AcknowledgmentRepository from '../repositories/AcknowledgmentRepository';
 import {
     validateId,
     validateCompanyHeader,
@@ -8,6 +11,9 @@ import {
 
 const router = Router();
 const acknowledgmentService = new AcknowledgmentService();
+const employeeService = new EmployeeService();
+const policyService = new PolicyService();
+const acknowledgmentRepository = new AcknowledgmentRepository();
 
 router.get('/', async (req, res, next) => {
     try {
@@ -66,6 +72,44 @@ router.patch('/update-overdue', async (req, res, next) => {
         const companyId = validateCompanyHeader(req);
         const updatedCount = await acknowledgmentService.updateOverdueStatus();
         return res.json({ message: `Updated ${updatedCount} overdue acknowledgments` });
+    } catch (error) {
+        return next(error);
+    }
+});
+
+router.post('/escalate-overdue', async (req, res, next) => {
+    try {
+        const companyId = validateCompanyHeader(req);
+
+        const updatedCount = await acknowledgmentService.updateOverdueStatus();
+
+        const overdueAcknowledgments = await acknowledgmentRepository.findOverdueAcknowledgments();
+        const escalationLogs = [];
+        for (const acknowledgment of overdueAcknowledgments) {
+            const employeeId = (acknowledgment as any).employeeId;
+            const policyId = (acknowledgment as any).policyId;
+
+            try {
+                // Get employee and policy details
+                const employee = await employeeService.getEmployeeById(employeeId, companyId);
+                const policy = await policyService.getPolicyById(policyId, companyId);
+
+                if (employee && policy) {
+                    const escalationLog = {
+                        message: `Employee ${(employee as any).name} (${employeeId}) has overdue policy ${(policy as any).name} (${policyId}) due on ${(acknowledgment as any).dueDate.toISOString().split('T')[0]}`
+                    };
+
+                    escalationLogs.push(escalationLog);
+
+                }
+            } catch (error) {
+                console.error(`Failed to escalate acknowledgment ${(acknowledgment as any).id}:`, error);
+            }
+        }
+
+        return res.json({
+            escalations: escalationLogs
+        });
     } catch (error) {
         return next(error);
     }
