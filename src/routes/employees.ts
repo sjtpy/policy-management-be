@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import EmployeeService from '../services/EmployeeService';
+import AcknowledgmentService from '../services/AcknowledgmentService';
 import {
     validateEmployeeCreateRequest,
     validateId,
@@ -8,6 +9,10 @@ import {
 
 const router = Router();
 const employeeService = new EmployeeService();
+const acknowledgmentService = new AcknowledgmentService();
+
+// Set up dependency injection
+employeeService.setAcknowledgmentService(acknowledgmentService);
 
 router.get('/', async (req, res, next) => {
     try {

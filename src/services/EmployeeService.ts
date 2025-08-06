@@ -1,12 +1,18 @@
 import EmployeeRepository, { CreateEmployeeData } from '../repositories/EmployeeRepository';
 import { EmployeeRole } from '../types/employee';
 import { NotFoundError, ConflictError } from '../utils/errors';
+import AcknowledgmentService from './AcknowledgmentService';
 
 class EmployeeService {
     private repository: EmployeeRepository;
+    private acknowledgmentService?: AcknowledgmentService;
 
     constructor() {
         this.repository = new EmployeeRepository();
+    }
+
+    setAcknowledgmentService(acknowledgmentService: AcknowledgmentService) {
+        this.acknowledgmentService = acknowledgmentService;
     }
 
     async getEmployeeById(id: string, companyId: string) {
@@ -31,7 +37,19 @@ class EmployeeService {
             throw new ConflictError('An employee with this email already exists for this company');
         }
 
-        return await this.repository.create(data);
+        const employee = await this.repository.create(data);
+
+        // auto-create new hire acknowledgments for all active policies
+        if (this.acknowledgmentService) {
+            try {
+                await this.acknowledgmentService.createNewHireAcknowledgments((employee as any).id, data.companyId);
+            } catch (error) {
+                // Log error but don't fail employee creation
+                console.error('Failed to create new hire acknowledgments:', error);
+            }
+        }
+
+        return employee;
     }
 
 

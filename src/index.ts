@@ -7,6 +7,7 @@ import policyTemplateRoutes from './routes/policyTemplates';
 import companyRoutes from './routes/companies';
 import policyRoutes from './routes/policies';
 import employeeRoutes from './routes/employees';
+import acknowledgmentRoutes from './routes/acknowledgments';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/api/policy-templates', policyTemplateRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/acknowledgments', acknowledgmentRoutes);
 
 
 app.use(errorHandler);

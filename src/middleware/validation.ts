@@ -1,5 +1,6 @@
 import { PolicyType, PolicyStatus } from '../types/policy';
 import { EmployeeRole } from '../types/employee';
+import { AcknowledgmentType, AcknowledgmentStatus } from '../types/acknowledgment';
 import { validate as validateUUID } from 'uuid';
 import { ValidationError } from '../utils/errors';
 
@@ -35,6 +36,13 @@ export interface ValidatedPolicyUpdateRequest {
     configuration?: any;
     status?: PolicyStatus;
     isActive?: boolean;
+}
+
+export interface ValidatedAcknowledgmentFilters {
+    employeeId?: string;
+    type?: AcknowledgmentType;
+    status?: AcknowledgmentStatus;
+    overdue?: boolean;
 }
 
 export const validatePolicyTemplateCreateRequest = (data: any): ValidatedPolicyTemplateCreateRequest => {
@@ -305,4 +313,40 @@ export const validateEmployeeCreateRequest = (data: any): ValidatedEmployeeCreat
         email,
         role
     };
+};
+
+
+export const validateAcknowledgmentFilters = (query: any): ValidatedAcknowledgmentFilters => {
+    const { employeeId, type, status, overdue } = query;
+    const filters: ValidatedAcknowledgmentFilters = {};
+
+    if (employeeId) {
+        if (!validateUUID(employeeId)) {
+            throw new ValidationError('Employee ID must be a valid UUID');
+        }
+        filters.employeeId = employeeId;
+    }
+
+    if (type) {
+        if (!Object.values(AcknowledgmentType).includes(type)) {
+            throw new ValidationError('Type must be a valid acknowledgment type');
+        }
+        filters.type = type;
+    }
+
+    if (status) {
+        if (!Object.values(AcknowledgmentStatus).includes(status)) {
+            throw new ValidationError('Status must be a valid acknowledgment status');
+        }
+        filters.status = status;
+    }
+
+    if (overdue !== undefined) {
+        if (overdue !== 'true' && overdue !== 'false') {
+            throw new ValidationError('Overdue must be "true" or "false"');
+        }
+        filters.overdue = overdue === 'true';
+    }
+
+    return filters;
 }; 
