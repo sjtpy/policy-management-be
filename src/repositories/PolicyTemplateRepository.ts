@@ -59,6 +59,13 @@ class PolicyTemplateRepository {
             where: { name, type, isActive: true }
         });
     }
+
+    async findLatestByName(name: string): Promise<PolicyTemplate | null> {
+        return await PolicyTemplate.findOne({
+            where: { name, isActive: true },
+            order: [['version', 'DESC']]
+        });
+    }
 }
 
 export default PolicyTemplateRepository; 

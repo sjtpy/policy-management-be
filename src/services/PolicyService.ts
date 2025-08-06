@@ -16,11 +16,57 @@ class PolicyService {
         if (!policy) {
             throw new NotFoundError('Policy not found');
         }
+
+        // Add upgrade flag if policy has template
+        if ((policy as any).templateId) {
+            const templateRepository = new (require('../repositories/PolicyTemplateRepository')).default();
+            const template = await templateRepository.findById((policy as any).templateId);
+
+            if (template) {
+                // Check if there's a newer template version
+                const latestTemplate = await templateRepository.findLatestByName((template as any).name);
+
+                if (latestTemplate && (latestTemplate as any).version !== (template as any).version) {
+                    return {
+                        ...policy.toJSON(),
+                        needsUpgrade: true,
+                        latestTemplateVersion: (latestTemplate as any).version
+                    };
+                }
+            }
+        }
+
         return policy;
     }
 
     async getPoliciesByCompanyId(companyId: string, filters?: { status?: PolicyStatus; type?: PolicyType }) {
-        return await this.repository.findByCompanyId(companyId, filters);
+        const policies = await this.repository.findByCompanyId(companyId, filters);
+
+        // Add upgrade flags to policies with templates
+        const policiesWithUpgradeFlags = await Promise.all(
+            policies.map(async (policy) => {
+                if ((policy as any).templateId) {
+                    const templateRepository = new (require('../repositories/PolicyTemplateRepository')).default();
+                    const template = await templateRepository.findById((policy as any).templateId);
+
+                    if (template) {
+                        // Check if there's a newer template version
+                        const latestTemplate = await templateRepository.findLatestByName((template as any).name);
+
+                        if (latestTemplate && (latestTemplate as any).version !== (template as any).version) {
+                            return {
+                                ...policy.toJSON(),
+                                needsUpgrade: true,
+                                latestTemplateVersion: (latestTemplate as any).version
+                            };
+                        }
+                    }
+                }
+                return policy;
+            })
+        );
+
+        return policiesWithUpgradeFlags;
     }
 
     async getPoliciesByIds(policyIds: string[], companyId: string) {

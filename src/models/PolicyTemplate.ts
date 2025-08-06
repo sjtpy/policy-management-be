@@ -20,13 +20,6 @@ PolicyTemplate.init(
         sequelize,
         tableName: 'policy_templates',
         timestamps: true,
-        indexes: [
-            {
-                unique: true,
-                fields: ['name', 'type'],
-                name: 'policy_templates_name_type_unique'
-            }
-        ]
     }
 );
 

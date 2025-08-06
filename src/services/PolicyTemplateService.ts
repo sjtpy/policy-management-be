@@ -1,4 +1,5 @@
 import PolicyTemplateRepository, { CreatePolicyTemplateData, UpdatePolicyTemplateData } from '../repositories/PolicyTemplateRepository';
+import PolicyTemplate from '../models/PolicyTemplate';
 import { PolicyType } from '../types/policy';
 import { NotFoundError, ConflictError } from '../utils/errors';
 
@@ -22,9 +23,18 @@ class PolicyTemplateService {
     }
 
     async createTemplate(data: CreatePolicyTemplateData) {
-        const existingTemplate = await this.repository.findByNameAndType(data.name, data.type);
+        // Check if template with same name, type, and version already exists
+        const existingTemplate = await PolicyTemplate.findOne({
+            where: {
+                name: data.name,
+                type: data.type,
+                version: data.version,
+                isActive: true
+            }
+        });
+
         if (existingTemplate) {
-            throw new ConflictError('A policy template with this name and type already exists');
+            throw new ConflictError('A policy template with this name, type, and version already exists');
         }
 
         return await this.repository.create(data);
