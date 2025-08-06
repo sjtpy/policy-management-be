@@ -1,4 +1,5 @@
 import { PolicyType, PolicyStatus } from '../types/policy';
+import { EmployeeRole } from '../types/employee';
 import { validate as validateUUID } from 'uuid';
 import { ValidationError } from '../utils/errors';
 
@@ -271,4 +272,37 @@ export const validateCompanyUpdateRequest = (data: any): ValidatedCompanyUpdateR
     }
 
     return updateData;
+};
+
+export interface ValidatedEmployeeCreateRequest {
+    name: string;
+    email: string;
+    role: EmployeeRole;
+}
+
+export const validateEmployeeCreateRequest = (data: any): ValidatedEmployeeCreateRequest => {
+    const { name, email, role } = data;
+
+    if (!name || typeof name !== 'string') {
+        throw new ValidationError('Name is required and must be a string');
+    }
+
+    if (!email || typeof email !== 'string') {
+        throw new ValidationError('Email is required and must be a string');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        throw new ValidationError('Email must be a valid email address');
+    }
+
+    if (!role || !Object.values(EmployeeRole).includes(role)) {
+        throw new ValidationError('Role is required and must be a valid employee role');
+    }
+
+    return {
+        name,
+        email,
+        role
+    };
 }; 

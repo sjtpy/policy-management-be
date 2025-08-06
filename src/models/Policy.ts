@@ -44,6 +44,10 @@ Policy.init(
         approvedBy: {
             type: DataTypes.UUID,
             allowNull: true,
+            references: {
+                model: 'employees',
+                key: 'id'
+            }
         },
         approvedAt: {
             type: DataTypes.DATE,

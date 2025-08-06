@@ -1,3 +1,4 @@
 import './PolicyTemplate';
 import './Company';
-import './Policy'; 
+import './Policy';
+import './Employee'; 
