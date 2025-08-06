@@ -76,13 +76,22 @@ class AcknowledgmentService {
         );
 
         // Create acknowledgment requests for role-specific policies
-        const acknowledgmentData: CreateAcknowledgmentData[] = roleSpecificPolicies.map(policy => ({
-            employeeId,
-            policyId: (policy as any).id,
-            type: AcknowledgmentType.NEW_HIRE,
-            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-            status: AcknowledgmentStatus.PENDING
-        }));
+        const acknowledgmentData: CreateAcknowledgmentData[] = roleSpecificPolicies.flatMap(policy => [
+            {
+                employeeId,
+                policyId: (policy as any).id,
+                type: AcknowledgmentType.NEW_HIRE,
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                status: AcknowledgmentStatus.PENDING
+            },
+            {
+                employeeId,
+                policyId: (policy as any).id,
+                type: AcknowledgmentType.PERIODIC,
+                dueDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+                status: AcknowledgmentStatus.PENDING
+            }
+        ]);
 
         return await this.repository.bulkCreate(acknowledgmentData);
     }
