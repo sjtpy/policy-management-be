@@ -142,7 +142,7 @@ class AcknowledgmentService {
         if (!acknowledgment) {
             throw new NotFoundError('Acknowledgment not found');
         }
-
+        // or store in s3, logs or db for audit
         return acknowledgment;
     }
 
