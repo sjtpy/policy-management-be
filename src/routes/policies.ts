@@ -88,6 +88,16 @@ router.patch('/:id/approve', async (req, res, next) => {
     }
 });
 
+router.patch('/:id/upgrade', async (req, res, next) => {
+    try {
+        const companyId = validateCompanyHeader(req);
+        const id = validateId(req.params.id);
 
+        const policy = await policyService.upgradePolicyToLatestTemplate(id, companyId);
+        return res.json(policy);
+    } catch (error) {
+        return next(error);
+    }
+});
 
 export default router; 

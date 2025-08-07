@@ -2,14 +2,44 @@ import PolicyRepository, { CreatePolicyData, UpdatePolicyData } from '../reposit
 import { PolicyType, PolicyStatus } from '../types/policy';
 import { NotFoundError, ConflictError } from '../utils/errors';
 import { POLICY_CONFIG } from '../config/policy';
+import PolicyTemplateRepository from '../repositories/PolicyTemplateRepository';
 
 class PolicyService {
     private repository: PolicyRepository;
+    private templateRepository: PolicyTemplateRepository;
 
     constructor() {
         this.repository = new PolicyRepository();
+        this.templateRepository = new PolicyTemplateRepository();
     }
 
+    /**
+     * Check if a policy needs upgrade based on template version
+     */
+    private async checkPolicyUpgrade(policy: any): Promise<any> {
+        if (!(policy as any).templateId) {
+            return policy;
+        }
+
+        const template = await this.templateRepository.findById((policy as any).templateId);
+        if (!template) {
+            return policy;
+        }
+
+        // Check if there's a newer template version
+        const latestTemplate = await this.templateRepository.findLatestByName((template as any).name);
+        
+        if (latestTemplate && (latestTemplate as any).version !== (template as any).version) {
+            return {
+                ...policy.toJSON ? policy.toJSON() : policy,
+                needsUpgrade: true,
+                latestTemplateVersion: (latestTemplate as any).version,
+                currentTemplateVersion: (template as any).version
+            };
+        }
+
+        return policy;
+    }
 
     async getPolicyById(id: string, companyId: string) {
         const policy = await this.repository.findByIdAndCompanyId(id, companyId);
@@ -18,25 +48,7 @@ class PolicyService {
         }
 
         // Add upgrade flag if policy has template
-        if ((policy as any).templateId) {
-            const templateRepository = new (require('../repositories/PolicyTemplateRepository')).default();
-            const template = await templateRepository.findById((policy as any).templateId);
-
-            if (template) {
-                // Check if there's a newer template version
-                const latestTemplate = await templateRepository.findLatestByName((template as any).name);
-
-                if (latestTemplate && (latestTemplate as any).version !== (template as any).version) {
-                    return {
-                        ...policy.toJSON(),
-                        needsUpgrade: true,
-                        latestTemplateVersion: (latestTemplate as any).version
-                    };
-                }
-            }
-        }
-
-        return policy;
+        return await this.checkPolicyUpgrade(policy);
     }
 
     async getPoliciesByCompanyId(companyId: string, filters?: { status?: PolicyStatus; type?: PolicyType }) {
@@ -45,24 +57,7 @@ class PolicyService {
         // Add upgrade flags to policies with templates
         const policiesWithUpgradeFlags = await Promise.all(
             policies.map(async (policy) => {
-                if ((policy as any).templateId) {
-                    const templateRepository = new (require('../repositories/PolicyTemplateRepository')).default();
-                    const template = await templateRepository.findById((policy as any).templateId);
-
-                    if (template) {
-                        // Check if there's a newer template version
-                        const latestTemplate = await templateRepository.findLatestByName((template as any).name);
-
-                        if (latestTemplate && (latestTemplate as any).version !== (template as any).version) {
-                            return {
-                                ...policy.toJSON(),
-                                needsUpgrade: true,
-                                latestTemplateVersion: (latestTemplate as any).version
-                            };
-                        }
-                    }
-                }
-                return policy;
+                return await this.checkPolicyUpgrade(policy);
             })
         );
 
@@ -157,6 +152,44 @@ class PolicyService {
         return policy;
     }
 
+    /**
+     * Upgrade a policy to the latest template version
+     */
+    async upgradePolicyToLatestTemplate(id: string, companyId: string) {
+        const policy = await this.repository.findByIdAndCompanyId(id, companyId);
+        if (!policy) {
+            throw new NotFoundError('Policy not found');
+        }
+
+        if (!(policy as any).templateId) {
+            throw new ConflictError('Cannot upgrade a policy that is not based on a template');
+        }
+
+        const currentTemplate = await this.templateRepository.findById((policy as any).templateId);
+        if (!currentTemplate) {
+            throw new NotFoundError('Template not found');
+        }
+
+        const latestTemplate = await this.templateRepository.findLatestByName((currentTemplate as any).name);
+        if (!latestTemplate) {
+            throw new NotFoundError('Latest template not found');
+        }
+
+        if ((latestTemplate as any).version === (currentTemplate as any).version) {
+            throw new ConflictError('Policy is already using the latest template version');
+        }
+
+        // Update policy to use the latest template
+        const updatedPolicy = await this.repository.update(id, {
+            templateId: (latestTemplate as any).id,
+        }, companyId);
+
+        return {
+            ...updatedPolicy,
+            upgradedFromVersion: (currentTemplate as any).version,
+            upgradedToVersion: (latestTemplate as any).version
+        };
+    }
 
 }
 

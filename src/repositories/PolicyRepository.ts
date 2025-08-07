@@ -12,6 +12,7 @@ export interface CreatePolicyData {
 }
 
 export interface UpdatePolicyData {
+    templateId?: string;
     name?: string;
     type?: PolicyType;
     version?: string;
