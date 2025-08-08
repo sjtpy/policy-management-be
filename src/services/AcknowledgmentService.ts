@@ -5,6 +5,7 @@ import PolicyService from './PolicyService';
 import EmployeeService from './EmployeeService';
 import { PolicyStatus } from '../types/policy';
 import { ROLE_POLICY_MAPPING } from '../config/rolePolicyMapping';
+import { ACKNOWLEDGMENT_CONFIG } from '../config/policy';
 import { EmployeeRole } from '../types/employee';
 
 class AcknowledgmentService {
@@ -76,22 +77,29 @@ class AcknowledgmentService {
         );
 
         // Create acknowledgment requests for role-specific policies
-        const acknowledgmentData: CreateAcknowledgmentData[] = roleSpecificPolicies.flatMap(policy => [
-            {
-                employeeId,
-                policyId: (policy as any).id,
-                type: AcknowledgmentType.NEW_HIRE,
-                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-                status: AcknowledgmentStatus.PENDING
-            },
-            {
-                employeeId,
-                policyId: (policy as any).id,
-                type: AcknowledgmentType.PERIODIC,
-                dueDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-                status: AcknowledgmentStatus.PENDING
+        const acknowledgmentData: CreateAcknowledgmentData[] = roleSpecificPolicies.flatMap(policy => {
+            const acknowledgments: CreateAcknowledgmentData[] = [
+                {
+                    employeeId,
+                    policyId: (policy as any).id,
+                    type: AcknowledgmentType.NEW_HIRE,
+                    dueDate: new Date(Date.now() + ACKNOWLEDGMENT_CONFIG.NEW_HIRE_DUE_DAYS * 24 * 60 * 60 * 1000),
+                    status: AcknowledgmentStatus.PENDING
+                }
+            ];
+
+            for (let year = 1; year <= ACKNOWLEDGMENT_CONFIG.PERIODIC_YEARS; year++) {
+                acknowledgments.push({
+                    employeeId,
+                    policyId: (policy as any).id,
+                    type: AcknowledgmentType.PERIODIC,
+                    dueDate: new Date(Date.now() + year * 365 * 24 * 60 * 60 * 1000),
+                    status: AcknowledgmentStatus.PENDING
+                });
             }
-        ]);
+
+            return acknowledgments;
+        });
 
         return await this.repository.bulkCreate(acknowledgmentData);
     }
