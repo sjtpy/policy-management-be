@@ -98,7 +98,7 @@ router.post('/escalate-overdue', async (req, res, next) => {
                     const escalationLog = {
                         message: `Employee ${(employee as any).name} (${employeeId}) has overdue policy ${(policy as any).name} (${policyId}) due on ${(acknowledgment as any).dueDate.toISOString().split('T')[0]}`
                     };
-
+                    //TODO: escalate to CXOs by email, etc
                     escalationLogs.push(escalationLog);
 
                 }
