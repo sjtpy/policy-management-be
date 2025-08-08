@@ -64,6 +64,27 @@ class PolicyService {
         return policiesWithUpgradeFlags;
     }
 
+    /**
+     * Get only the latest approved version of each policy for acknowledgments
+     */
+    async getActivePoliciesForAcknowledgments(companyId: string): Promise<any[]> {
+        const allPolicies = await this.repository.findByCompanyId(companyId, { status: PolicyStatus.APPROVED });
+        
+        // Group by name+type and get the latest version of each
+        const policyMap = new Map<string, any>();
+        
+        allPolicies.forEach(policy => {
+            const key = `${(policy as any).name}-${(policy as any).type}`;
+            const existing = policyMap.get(key);
+            
+            if (!existing || (policy as any).version > (existing as any).version) {
+                policyMap.set(key, policy);
+            }
+        });
+
+        return Array.from(policyMap.values());
+    }
+
     async getPoliciesByIds(policyIds: string[], companyId: string) {
         const policies = [];
         for (const policyId of policyIds) {
@@ -102,13 +123,52 @@ class PolicyService {
     }
 
     async updatePolicy(id: string, data: UpdatePolicyData, companyId: string) {
+        const currentPolicy = await this.repository.findByIdAndCompanyId(id, companyId);
+        if (!currentPolicy) {
+            throw new NotFoundError('Policy not found');
+        }
+
+        // Check if configuration changed
+        if (data.configuration && JSON.stringify(data.configuration) !== JSON.stringify((currentPolicy as any).configuration)) {
+            // Configuration changed - create new version
+            const latestVersion = await this.repository.findLatestVersionByNameAndType(
+                companyId, 
+                (currentPolicy as any).name, 
+                (currentPolicy as any).type
+            );
+            
+            const currentVersion = (currentPolicy as any).version;
+            const newVersion = latestVersion ? this.incrementVersion(currentVersion) : currentVersion;
+            
+            // Create new policy version with updated configuration
+            const newPolicyData = {
+                companyId,
+                name: (currentPolicy as any).name,
+                type: (currentPolicy as any).type,
+                version: newVersion,
+                content: (currentPolicy as any).content,
+                configuration: data.configuration, // Only include configuration from data
+                status: PolicyStatus.PENDING_APPROVAL,
+                approvedBy: undefined,
+                approvedAt: undefined,
+                effectiveFrom: undefined,
+                effectiveTo: undefined,
+                isActive: true
+            };
+            console.log('newPolicyData', newPolicyData);
+            const newPolicy = await this.repository.create(newPolicyData);
+            
+            return {
+                ...newPolicy,
+                configurationChanged: true,
+                previousVersion: currentVersion,
+                newVersion: newVersion,
+                previousPolicyId: (currentPolicy as any).id
+            };
+        }
+
         // If name or type is being updated, check for conflicts
         if (data.name || data.type) {
-            const currentPolicy = await this.repository.findByIdAndCompanyId(id, companyId);
-            if (!currentPolicy) {
-                throw new NotFoundError('Policy not found');
-            }
-
             const newName = data.name || (currentPolicy as any).name;
             const newType = data.type || (currentPolicy as any).type;
 
@@ -126,6 +186,17 @@ class PolicyService {
         return policy;
     }
 
+    private incrementVersion(version: string): string {
+        const parts = version.split('.');
+        if (parts.length === 2) {
+            const major = parseInt(parts[0]);
+            const minor = parseInt(parts[1]);
+            return `${major}.${minor + 1}`;
+        }
+        // If version format is unexpected, just append ".1"
+        return `${version}.1`;
+    }
+
     async deletePolicy(id: string, companyId: string) {
         const deleted = await this.repository.delete(id, companyId);
         if (!deleted) {
@@ -135,21 +206,44 @@ class PolicyService {
     }
 
     async approvePolicy(id: string, approvedBy: string, companyId: string) {
+        const policy = await this.repository.findByIdAndCompanyId(id, companyId);
+        if (!policy) {
+            throw new NotFoundError('Policy not found');
+        }
+
         const effectiveFrom = new Date();
         const effectiveTo = new Date();
         effectiveTo.setDate(effectiveTo.getDate() + POLICY_CONFIG.EFFECTIVE_DURATION_DAYS);
 
-        const policy = await this.repository.update(id, {
+        // If this is a new version, deactivate the previous version
+        if ((policy as any).status === PolicyStatus.PENDING_APPROVAL) {
+            const previousVersion = await this.repository.findLatestVersionByNameAndType(
+                companyId,
+                (policy as any).name,
+                (policy as any).type
+            );
+            
+            if (previousVersion && (previousVersion as any).id !== id && (previousVersion as any).status === PolicyStatus.APPROVED) {
+                // Deactivate the previous approved version
+                await this.repository.update((previousVersion as any).id, {
+                    isActive: false
+                }, companyId);
+            }
+        }
+
+        const updatedPolicy = await this.repository.update(id, {
             status: PolicyStatus.APPROVED,
             approvedBy,
             approvedAt: new Date(),
             effectiveFrom,
-            effectiveTo
+            effectiveTo,
+            isActive: true
         }, companyId);
-        if (!policy) {
-            throw new NotFoundError('Policy not found');
-        }
-        return policy;
+
+        return {
+            ...updatedPolicy,
+            previousVersionDeactivated: true
+        };
     }
 
     /**

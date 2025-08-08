@@ -69,8 +69,8 @@ Policy.init(
         indexes: [
             {
                 unique: true,
-                fields: ['companyId', 'name', 'type'],
-                name: 'policies_company_name_type_unique'
+                fields: ['companyId', 'name', 'type', 'version'],
+                name: 'policies_company_name_type_version_unique'
             }
         ]
     }

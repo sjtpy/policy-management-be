@@ -66,10 +66,8 @@ class AcknowledgmentService {
         // Get required policy types for this role
         const requiredPolicyTypes = ROLE_POLICY_MAPPING[employeeRole] || [];
 
-        // Get approved required types for the company
-        const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, {
-            status: PolicyStatus.APPROVED
-        });
+        // Get only the latest approved version of each policy for the company
+        const activePolicies = await this.policyService.getActivePoliciesForAcknowledgments(companyId);
 
         // filter policies based on employee's role
         const roleSpecificPolicies = activePolicies.filter(policy =>
@@ -118,10 +116,8 @@ class AcknowledgmentService {
             const employeeRole = (employee as any).role as EmployeeRole;
             const requiredPolicyTypes = ROLE_POLICY_MAPPING[employeeRole] || [];
 
-            // Get active policies of required types for the company
-            const activePolicies = await this.policyService.getPoliciesByCompanyId(companyId, {
-                status: PolicyStatus.APPROVED
-            });
+            // Get only the latest approved version of each policy for the company
+            const activePolicies = await this.policyService.getActivePoliciesForAcknowledgments(companyId);
 
             const roleSpecificPolicies = activePolicies.filter(policy =>
                 requiredPolicyTypes.includes((policy as any).type)
